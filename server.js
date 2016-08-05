@@ -3,6 +3,7 @@ var express = require('express');
 var app = express();
 
 var mongoose = require('mongoose');
+mongoose.Promise = global.Promise;
 var _ = require('lodash');
 
 var cors = require('cors');
@@ -25,6 +26,7 @@ var recipeSchema = mongoose.Schema({
    });
 
 var Recipe = mongoose.model('Recipe', recipeSchema);
+// Recipe.ensureIndex( {"name": 1, "ingredients": 1});
 
 mongoose.connect('mongodb://chef:fridgeit@ds139645.mlab.com:39645/fridgeit-data');
 
@@ -56,61 +58,32 @@ app.get('/recipes', function(request, response) {
 });
 
 app.get('/recipes/:ingredient', function(request, response) {
-    console.log('___________request ', request.params.ingredient);
-    var ingrtSplit = request.params.ingredient.split('|').join(' ');
-    console.log('___________ingrtSplit', ingrtSplit);
-    var recipeFlag = false;
-    var result = {};
-    result.recipeResults = [];
-    // for (var i = 0; i < ingrtSplit.length; i++) {
-        Recipe.find({
-            $text : { 
-                    $search: ingrtSplit 
-                }
-            }, {
-                ingredients: {    
-                    $meta: "textScore"
-                
-                }
-            })
-        // .toArray(function (error, items) {
-        //         response.status(200).json(items);
-        // })
-        .exec(function (error, recipe) {
-                if(error) return;
-                console.log('-_-_-_-_-_ recipe', recipe );
-                result.recipeResults.push(recipe);
-        
-            // return recipe;
-        })
-        .then(function () {
-            return response.status(200).json(result);
-        })
-        // .catch(function(){
-        //     return response.sendStatus(400);
-        // });
-        // console.log('-_-_-_-_-_ item', item );
-        // item.then(function (data) {
-        //     result.recipeResults.push(data);
-        //     return response.status(200).json(result);
-        // })
-        // recipeResults.push(item);
-        // recipeResults.push(ingrtRecipes);
-        // recipeFlag = true;
-    // }
+    var ingrtSplit = request.params.ingredient.split('|');
+    ingrtSplit = new RegExp("("+ingrtSplit.join(")|(")+")", "im")
+    console.log(ingrtSplit);
+    Recipe.find({
+        "ingredients" : {
+            $regex : ingrtSplit 
+        }
+    })
+    .then(function (resultData) {
+        var filteredData = "";
+        return response.status(200).json(resultData);
+    })
+    .catch(function(){
+        return response.sendStatus(400);
+    });
     
         /* Recipe.find({ "ingredients": ingrtSplit[0] }).exec(function(error, recipeResults) {
         var ingrt1Recipes = recipeSchema.ingredients.indexOf(ingrtSplit[0]);
         //var ingrt2Recipes = Recipe.recipes.ingredients.indexOf(ingrtSplit[1]);*/
         // console.log('----------RecipeResult', recipeResults);
-    // result.recipe = recipeResults;
-    // if (recipeFlag) {
-    //     return response.status(200).json(result);
-    // }
-        // response.sendStatus(404);
 });
     
+app.listen(3000, 'localhost', function (err) {
+    if (err) return console.log(err);
+    console.log('listening on port: 3000');
 
-app.listen(process.env.PORT || 9000);
+});
 
 exports.app = app;
